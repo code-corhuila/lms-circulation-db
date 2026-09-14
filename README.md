@@ -1,9 +1,17 @@
 # lms-circulation-db
 
-> Circulation bounded context: schema and migrations
+> Circulation bounded context: database
 
 Part of the **LMS Library** distributed system — team `lms-library`, Grupo 2.
 Governance and documentation live in [`library-docs`](https://github.com/code-corhuila/library-docs).
+
+## Migration scope
+
+**From scratch** — this domain has no database in `lms-library` yet.
+
+The full map lives in `library-docs`.
+
+---
 
 ## Branching
 
