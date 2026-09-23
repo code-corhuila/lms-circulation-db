@@ -1,0 +1,35 @@
+# Standalone compose for this repo's own database lifecycle — lms-infra composes this
+# alongside the other per-context repos later (ADR-006-repo-per-context-decomposition.md).
+#
+# MongoDB, not PostgreSQL — the one exception in this project, per
+# ADR-005-mongodb-for-circulation-service.md. There is no migrate/migrate service here:
+# Mongo needs no schema migrations, and the `loans` collection's indexes are created by
+# lms-circulation-api itself at startup (internal/infrastructure/mongodb.EnsureIndexes),
+# not by this repo.
+services:
+  loan-db:
+    image: mongo:7
+    container_name: loan-db
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USER:-lms_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD:-lms_password}
+      MONGO_INITDB_DATABASE: loan_db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - loan-db-data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - lms-network
+
+volumes:
+  loan-db-data:
+
+networks:
+  lms-network:
+    driver: bridge
