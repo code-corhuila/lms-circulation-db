@@ -1,0 +1,83 @@
+name: db-ci
+on:
+  pull_request:
+    branches: [develop, qa, main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reconstruction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start a single-node replica set MongoDB
+        run: |
+          docker network create loan-ci-net
+          docker run -d --name loan-db --network loan-ci-net -p 27017:27017 \
+            mongo:7 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 20); do
+            docker exec loan-db mongosh --quiet --eval \
+              "try { rs.status().ok } catch (e) { rs.initiate() }" && break
+            sleep 2
+          done
+
+      - name: Build the Liquibase+MongoDB extension image
+        run: docker build -t loan-migrate -f deploy/liquibase.Dockerfile deploy
+
+      - name: Liquibase update — build from empty
+        run: |
+          docker run --rm --network loan-ci-net \
+            -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
+            loan-migrate \
+            --changelog-file=changelog/changelog-master.yaml \
+            --url="mongodb://loan-db:27017/loan_db?replicaSet=rs0" \
+            update
+
+      - name: Liquibase update again — must apply zero changesets
+        run: |
+          out=$(docker run --rm --network loan-ci-net \
+            -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
+            loan-migrate \
+            --changelog-file=changelog/changelog-master.yaml \
+            --url="mongodb://loan-db:27017/loan_db?replicaSet=rs0" \
+            update)
+          echo "$out"
+          echo "$out" | grep -q "0 changesets have not been applied\|Run:  *0" || {
+            echo "second update was not a no-op"; exit 1;
+          }
+
+      - name: Validator rejects an invalid document
+        run: |
+          docker exec loan-db mongosh loan_db --quiet --eval '
+            try {
+              db.loans.insertOne({ _id: "x", status: "NOT_A_STATUS" });
+              print("FAIL: invalid document was accepted");
+              quit(1);
+            } catch (e) {
+              print("OK: rejected as expected");
+            }
+          '
+
+      - name: Validator accepts a valid document
+        run: |
+          docker exec loan-db mongosh loan_db --quiet --eval '
+            db.loans.insertOne({
+              _id: "loan-ci-1", student_id: "s1", book_id: "b1",
+              loan_date: new Date(), due_date: new Date(),
+              status: "ACTIVE", created_at: new Date(), updated_at: new Date()
+            });
+          '
+
+      - name: Indexes exist with their explicit names
+        run: |
+          docker exec loan-db mongosh loan_db --quiet --eval '
+            const names = db.loans.getIndexes().map(i => i.name);
+            ["idx_loan_student_id", "idx_loan_book_id", "idx_loan_status_due_date"]
+              .forEach(n => { if (!names.includes(n)) { print("missing " + n); quit(1); } });
+          '
+
+      - name: Teardown
+        if: always()
+        run: docker rm -f loan-db 2>/dev/null || true
