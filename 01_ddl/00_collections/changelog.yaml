@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: ddl-collections-001
+      author: OscarAreiza
+      labels: "HU-06,HU-07,HU-08,ddl,collections"
+      comment: "loans: the Circulation aggregate root — one document per loan, shape matches lms-circulation-api's loanDocument (internal/adapter/out/persistence/loan_repository.go)"
+      changes:
+        - runCommand:
+            command: >
+              {
+                create: "loans",
+                validator: {
+                  $jsonSchema: {
+                    bsonType: "object",
+                    required: ["_id", "student_id", "book_id", "loan_date", "due_date", "status", "created_at", "updated_at"],
+                    additionalProperties: false,
+                    properties: {
+                      _id:         { bsonType: "string", description: "Loan.ID (UUID), not an ObjectId — the domain owns the identifier" },
+                      student_id:  { bsonType: "string" },
+                      book_id:     { bsonType: "string" },
+                      loan_date:   { bsonType: "date" },
+                      due_date:    { bsonType: "date" },
+                      return_date: { bsonType: ["date", "null"] },
+                      status:      { enum: ["ACTIVE", "RETURNED"] },
+                      was_late:    { bsonType: ["bool", "null"] },
+                      created_at:  { bsonType: "date" },
+                      updated_at:  { bsonType: "date" }
+                    }
+                  }
+                },
+                validationLevel: "strict",
+                validationAction: "error"
+              }
+      rollback:
+        - runCommand:
+            command: '{ "drop": "loans" }'
