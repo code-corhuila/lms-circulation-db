@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: ddl-indexes-001
+      author: OscarAreiza
+      labels: "HU-06,HU-07,HU-08,ddl,indexes"
+      comment: "student_id/book_id for the eligibility and availability lookups; status+due_date compound for the overdue report (HU-08). Same three indexes lms-circulation-api's EnsureIndexes used to create — moved here."
+      changes:
+        - runCommand:
+            command: >
+              {
+                createIndexes: "loans",
+                indexes: [
+                  { key: { student_id: 1 }, name: "idx_loan_student_id" },
+                  { key: { book_id: 1 }, name: "idx_loan_book_id" },
+                  { key: { status: 1, due_date: 1 }, name: "idx_loan_status_due_date" }
+                ]
+              }
+      rollback:
+        - runCommand:
+            command: '{ "dropIndexes": "loans", "index": ["idx_loan_student_id", "idx_loan_book_id", "idx_loan_status_due_date"] }'
