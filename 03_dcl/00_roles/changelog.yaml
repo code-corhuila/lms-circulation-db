@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: dcl-roles-001
+      author: OscarAreiza
+      labels: "governance,dcl,roles"
+      comment: "circulation_reader/circulation_writer, no password — rules/2-anexos/B-db-mongo.md: roles via createRole, the infrastructure creates the actual login users"
+      changes:
+        - runCommand:
+            command: >
+              {
+                createRole: "circulation_reader",
+                privileges: [
+                  { resource: { db: "loan_db", collection: "loans" }, actions: ["find"] }
+                ],
+                roles: []
+              }
+        - runCommand:
+            command: >
+              {
+                createRole: "circulation_writer",
+                privileges: [
+                  { resource: { db: "loan_db", collection: "loans" }, actions: ["find", "insert", "update"] }
+                ],
+                roles: []
+              }
+      rollback:
+        - runCommand:
+            command: '{ "dropRole": "circulation_reader" }'
+        - runCommand:
+            command: '{ "dropRole": "circulation_writer" }'
