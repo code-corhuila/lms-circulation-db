@@ -34,3 +34,31 @@ databaseChangeLog:
       rollback:
         - runCommand:
             command: '{ "drop": "loans" }'
+  - changeSet:
+      id: ddl-collections-002
+      author: OscarAreiza
+      labels: "governance,ddl,collections"
+      comment: "idempotency_keys: backs durable Idempotency-Key support for POST /loans (rules/2-anexos/C-api-hexagonal.md numeral 5.3.8). _id IS the key — a lookup by _id is exactly how the -api checks 'have I seen this intent before', and gives uniqueness for free with no separate index."
+      changes:
+        - runCommand:
+            command: >
+              {
+                create: "idempotency_keys",
+                validator: {
+                  $jsonSchema: {
+                    bsonType: "object",
+                    required: ["_id", "loan_id", "created_at"],
+                    additionalProperties: false,
+                    properties: {
+                      _id:        { bsonType: "string", description: "the Idempotency-Key header value, 8 to 128 characters" },
+                      loan_id:    { bsonType: "string" },
+                      created_at: { bsonType: "date" }
+                    }
+                  }
+                },
+                validationLevel: "strict",
+                validationAction: "error"
+              }
+      rollback:
+        - runCommand:
+            command: '{ "drop": "idempotency_keys" }'
