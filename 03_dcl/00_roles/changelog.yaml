@@ -28,3 +28,42 @@ databaseChangeLog:
             command: '{ "dropRole": "circulation_reader" }'
         - runCommand:
             command: '{ "dropRole": "circulation_writer" }'
+  - changeSet:
+      id: dcl-roles-002
+      author: OscarAreiza
+      labels: "governance,dcl,roles"
+      comment: "grants both roles access to idempotency_keys — a new changeset, not an edit to dcl-roles-001 (rule: an applied changeset never changes)"
+      changes:
+        - runCommand:
+            command: >
+              {
+                grantPrivilegesToRole: "circulation_reader",
+                privileges: [
+                  { resource: { db: "loan_db", collection: "idempotency_keys" }, actions: ["find"] }
+                ]
+              }
+        - runCommand:
+            command: >
+              {
+                grantPrivilegesToRole: "circulation_writer",
+                privileges: [
+                  { resource: { db: "loan_db", collection: "idempotency_keys" }, actions: ["find", "insert"] }
+                ]
+              }
+      rollback:
+        - runCommand:
+            command: >
+              {
+                revokePrivilegesFromRole: "circulation_reader",
+                privileges: [
+                  { resource: { db: "loan_db", collection: "idempotency_keys" }, actions: ["find"] }
+                ]
+              }
+        - runCommand:
+            command: >
+              {
+                revokePrivilegesFromRole: "circulation_writer",
+                privileges: [
+                  { resource: { db: "loan_db", collection: "idempotency_keys" }, actions: ["find", "insert"] }
+                ]
+              }

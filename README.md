@@ -28,7 +28,7 @@ Flyway isn't an option for MongoDB under the norm.
 
 ```
 01_ddl/
-├── 00_collections/  → loans, with its $jsonSchema validator (strict/error)
+├── 00_collections/  → loans and idempotency_keys, each with its $jsonSchema validator (strict/error)
 ├── 01_validators/   → empty today — no post-creation collMod change yet
 ├── 02_indexes/      → idx_loan_student_id, idx_loan_book_id, idx_loan_status_due_date
 └── 03_views/        → empty today — no aggregation view needed
