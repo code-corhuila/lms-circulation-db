@@ -23,6 +23,14 @@ jobs:
             sleep 2
           done
 
+      - name: Create circulation_app (the login lms-infra-mongo creates in real environments)
+        run: |
+          docker exec loan-db mongosh loan_db --quiet --eval '
+            if (db.getUser("circulation_app") === null) {
+              db.createUser({ user: "circulation_app", pwd: "ci-only-password", roles: [] });
+            }
+          '
+
       - name: Build the Liquibase+MongoDB extension image
         run: docker build -t loan-migrate -f deploy/liquibase.Dockerfile deploy
 
