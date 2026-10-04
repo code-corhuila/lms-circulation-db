@@ -67,3 +67,26 @@ databaseChangeLog:
                   { resource: { db: "loan_db", collection: "idempotency_keys" }, actions: ["find", "insert"] }
                 ]
               }
+  - changeSet:
+      id: dcl-roles-003
+      author: OscarAreiza
+      labels: "governance,dcl,roles"
+      comment: "ties circulation_writer to circulation_app, created with no roles by lms-infra-mongo's init script — rules/3-Anexo-J, J.7 (Mongo's grantRolesToUser, the equivalent of Postgres's GRANT role TO user)"
+      changes:
+        - runCommand:
+            command: >
+              {
+                grantRolesToUser: "circulation_app",
+                roles: [
+                  { role: "circulation_writer", db: "loan_db" }
+                ]
+              }
+      rollback:
+        - runCommand:
+            command: >
+              {
+                revokeRolesFromUser: "circulation_app",
+                roles: [
+                  { role: "circulation_writer", db: "loan_db" }
+                ]
+              }
