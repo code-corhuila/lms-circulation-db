@@ -1,0 +1,64 @@
+databaseChangeLog:
+  - changeSet:
+      id: ddl-collections-001
+      author: OscarAreiza
+      labels: "HU-06,HU-07,HU-08,ddl,collections"
+      comment: "loans: the Circulation aggregate root — one document per loan, shape matches lms-circulation-api's loanDocument (internal/adapter/out/persistence/loan_repository.go)"
+      changes:
+        - runCommand:
+            command: >
+              {
+                create: "loans",
+                validator: {
+                  $jsonSchema: {
+                    bsonType: "object",
+                    required: ["_id", "student_id", "book_id", "loan_date", "due_date", "status", "created_at", "updated_at"],
+                    additionalProperties: false,
+                    properties: {
+                      _id:         { bsonType: "string", description: "Loan.ID (UUID), not an ObjectId — the domain owns the identifier" },
+                      student_id:  { bsonType: "string" },
+                      book_id:     { bsonType: "string" },
+                      loan_date:   { bsonType: "date" },
+                      due_date:    { bsonType: "date" },
+                      return_date: { bsonType: ["date", "null"] },
+                      status:      { enum: ["ACTIVE", "RETURNED"] },
+                      was_late:    { bsonType: ["bool", "null"] },
+                      created_at:  { bsonType: "date" },
+                      updated_at:  { bsonType: "date" }
+                    }
+                  }
+                },
+                validationLevel: "strict",
+                validationAction: "error"
+              }
+      rollback:
+        - runCommand:
+            command: '{ "drop": "loans" }'
+  - changeSet:
+      id: ddl-collections-002
+      author: OscarAreiza
+      labels: "governance,ddl,collections"
+      comment: "idempotency_keys: backs durable Idempotency-Key support for POST /loans (rules/2-anexos/C-api-hexagonal.md numeral 5.3.8). _id IS the key — a lookup by _id is exactly how the -api checks 'have I seen this intent before', and gives uniqueness for free with no separate index."
+      changes:
+        - runCommand:
+            command: >
+              {
+                create: "idempotency_keys",
+                validator: {
+                  $jsonSchema: {
+                    bsonType: "object",
+                    required: ["_id", "loan_id", "created_at"],
+                    additionalProperties: false,
+                    properties: {
+                      _id:        { bsonType: "string", description: "the Idempotency-Key header value, 8 to 128 characters" },
+                      loan_id:    { bsonType: "string" },
+                      created_at: { bsonType: "date" }
+                    }
+                  }
+                },
+                validationLevel: "strict",
+                validationAction: "error"
+              }
+      rollback:
+        - runCommand:
+            command: '{ "drop": "idempotency_keys" }'
