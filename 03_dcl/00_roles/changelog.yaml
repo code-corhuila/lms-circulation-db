@@ -90,3 +90,36 @@ databaseChangeLog:
                   { role: "circulation_writer", db: "loan_db" }
                 ]
               }
+  - changeSet:
+      id: dcl-roles-004
+      author: OscarAreiza
+      labels: "governance,dcl,roles"
+      comment: >
+        dcl-roles-002 granted circulation_writer only find+insert on
+        idempotency_keys — IdempotencyStore.Save (same upsert-via-ReplaceOne
+        pattern as LoanRepository.Save) needs update too, or the very first
+        write for a new key fails Unauthorized even though it's an upsert:
+        MongoDB's replaceOne is authorized under the update action regardless
+        of whether it ends up inserting or replacing. Confirmed live against
+        a running instance: POST /loans completed the real registration
+        (Loan saved, catalog-service's copy count decremented) but then
+        returned 500 because this exact grant was missing, so the loan was
+        silently created without the client ever seeing a success response.
+      changes:
+        - runCommand:
+            command: >
+              {
+                grantPrivilegesToRole: "circulation_writer",
+                privileges: [
+                  { resource: { db: "loan_db", collection: "idempotency_keys" }, actions: ["update"] }
+                ]
+              }
+      rollback:
+        - runCommand:
+            command: >
+              {
+                revokePrivilegesFromRole: "circulation_writer",
+                privileges: [
+                  { resource: { db: "loan_db", collection: "idempotency_keys" }, actions: ["update"] }
+                ]
+              }
