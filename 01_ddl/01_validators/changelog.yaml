@@ -1,1 +1,62 @@
-databaseChangeLog: []
+databaseChangeLog:
+  - changeSet:
+      id: ddl-validators-001
+      author: OscarAreiza
+      labels: "ADR-008,ADR-009,ddl,validators"
+      comment: "loans: add late_marked_at and notified_at, written by the new internal-only /loans/{id}/mark-late (lms-workflow's saga step A, ADR-008) and /loans/{id}/notify (lms-worker's due-date-notice job, ADR-009) endpoints — both optional, null until the respective job sets them."
+      changes:
+        - runCommand:
+            command: >
+              {
+                collMod: "loans",
+                validator: {
+                  $jsonSchema: {
+                    bsonType: "object",
+                    required: ["_id", "student_id", "book_id", "loan_date", "due_date", "status", "created_at", "updated_at"],
+                    additionalProperties: false,
+                    properties: {
+                      _id:            { bsonType: "string", description: "Loan.ID (UUID), not an ObjectId — the domain owns the identifier" },
+                      student_id:     { bsonType: "string" },
+                      book_id:        { bsonType: "string" },
+                      loan_date:      { bsonType: "date" },
+                      due_date:       { bsonType: "date" },
+                      return_date:    { bsonType: ["date", "null"] },
+                      status:         { enum: ["ACTIVE", "RETURNED"] },
+                      was_late:       { bsonType: ["bool", "null"] },
+                      late_marked_at: { bsonType: ["date", "null"], description: "set by POST /loans/{id}/mark-late, lms-workflow only" },
+                      notified_at:    { bsonType: ["date", "null"], description: "set by POST /loans/{id}/notify, lms-worker only" },
+                      created_at:     { bsonType: "date" },
+                      updated_at:     { bsonType: "date" }
+                    }
+                  }
+                },
+                validationLevel: "strict",
+                validationAction: "error"
+              }
+      rollback:
+        - runCommand:
+            command: >
+              {
+                collMod: "loans",
+                validator: {
+                  $jsonSchema: {
+                    bsonType: "object",
+                    required: ["_id", "student_id", "book_id", "loan_date", "due_date", "status", "created_at", "updated_at"],
+                    additionalProperties: false,
+                    properties: {
+                      _id:         { bsonType: "string", description: "Loan.ID (UUID), not an ObjectId — the domain owns the identifier" },
+                      student_id:  { bsonType: "string" },
+                      book_id:     { bsonType: "string" },
+                      loan_date:   { bsonType: "date" },
+                      due_date:    { bsonType: "date" },
+                      return_date: { bsonType: ["date", "null"] },
+                      status:      { enum: ["ACTIVE", "RETURNED"] },
+                      was_late:    { bsonType: ["bool", "null"] },
+                      created_at:  { bsonType: "date" },
+                      updated_at:  { bsonType: "date" }
+                    }
+                  }
+                },
+                validationLevel: "strict",
+                validationAction: "error"
+              }
